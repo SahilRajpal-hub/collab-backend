@@ -1,9 +1,10 @@
 {
-  "name": "register-login-system-backend",
-  "author": "felixyu",
+  "name": "collab-backend",
+  "author": "Sahil Rajpal",
   "version": "1.0.0",
   "dependencies": {
     "bcryptjs": "2.4.3",
-    "jsonwebtoken": "8.5.1"
+    "jsonwebtoken": "8.5.1",
+    "uuid": "^8.3.2"
   }
 }
