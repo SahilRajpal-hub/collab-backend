@@ -3,7 +3,10 @@ const loginService = require("./service/user/login");
 const verifyService = require("./service/user/verify");
 const { getUserByEmail, getUserById } = require("./service/user/userDetails");
 const util = require("./utils/util");
-const { friendTheUser } = require("./service/user/userOperations");
+const {
+  friendTheUser,
+  unfriendTheUser,
+} = require("./service/user/userOperations");
 const { getUserFromToken } = require("./utils/auth");
 
 const healthPath = "/health";
@@ -24,6 +27,10 @@ exports.handler = async (event) => {
   */
   let response;
   let uid;
+  let secondUserId;
+  let firstUser;
+  let firstUserId;
+
   switch (true) {
     case event.httpMethod === "GET" && event.path === healthPath:
       response = util.buildResponse(200);
@@ -40,12 +47,23 @@ exports.handler = async (event) => {
       const verifyBody = JSON.parse(event.body);
       response = verifyService.verify(verifyBody);
       break;
-    case event.httpMethod === "POST" && event.path === friendPath:
-      let secondUserId = event.body.id;
-      let firstUserId = getUserFromToken(event["headers"]["x-access-token"])[
-        "user"
-      ]["id"];
-      response = friendTheUser(firstUserId, secondUserId);
+    case event.httpMethod === "POST" &&
+      event.resource === friendPath &&
+      event["pathParameters"]["todo"] === "1":
+      secondUserId = JSON.parse(event.body).id;
+      firstUser = getUserFromToken(event["headers"]["x-access-token"]);
+      console.log(firstUser);
+      firstUserId = firstUser["id"];
+      console.log(firstUserId, " ", secondUserId);
+      response = await friendTheUser(firstUserId, secondUserId);
+      break;
+    case event.httpMethod === "POST" &&
+      event.resource === friendPath &&
+      event["pathParameters"]["todo"] === "0":
+      secondUserId = JSON.parse(event.body).id;
+      firstUser = getUserFromToken(event["headers"]["x-access-token"]);
+      firstUserId = firstUser["id"];
+      response = await unfriendTheUser(firstUserId, secondUserId);
       break;
     case event.httpMethod === "GET" &&
       event.resource === getUserPath &&
