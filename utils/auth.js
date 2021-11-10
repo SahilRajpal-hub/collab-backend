@@ -33,5 +33,19 @@ function verifyToken(email, token) {
   });
 }
 
+function getUserFromToken(token) {
+  return jwt.verify(token, process.env.JWT_SECRET, (error, response) => {
+    if (error) {
+      return {
+        verified: false,
+        message: "invalid token",
+      };
+    }
+
+    return response;
+  });
+}
+
 module.exports.generateToken = generateToken;
 module.exports.verifyToken = verifyToken;
+module.exports.getUserFromToken = getUserFromToken;

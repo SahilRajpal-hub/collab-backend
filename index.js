@@ -3,6 +3,8 @@ const loginService = require("./service/user/login");
 const verifyService = require("./service/user/verify");
 const { getUserByEmail, getUserById } = require("./service/user/userDetails");
 const util = require("./utils/util");
+const { friendTheUser } = require("./service/user/userOperations");
+const { getUserFromToken } = require("./utils/auth");
 
 const healthPath = "/health";
 const registerPath = "/user/register";
@@ -10,6 +12,7 @@ const loginPath = "/user/login";
 const verifyPath = "/user/auth";
 const getUserPath = "/user/{uid}";
 const getUserInfoPath = "/user/info/{uid}";
+const friendPath = "/user/friend/{todo}";
 
 exports.handler = async (event) => {
   console.log("Request Event: ", event);
@@ -36,6 +39,13 @@ exports.handler = async (event) => {
     case event.httpMethod === "POST" && event.path === verifyPath:
       const verifyBody = JSON.parse(event.body);
       response = verifyService.verify(verifyBody);
+      break;
+    case event.httpMethod === "POST" && event.path === friendPath:
+      let secondUserId = event.body.id;
+      let firstUserId = getUserFromToken(event["headers"]["x-access-token"])[
+        "user"
+      ]["id"];
+      response = friendTheUser(firstUserId, secondUserId);
       break;
     case event.httpMethod === "GET" &&
       event.resource === getUserPath &&
