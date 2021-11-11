@@ -20,6 +20,10 @@ async function friendTheUser(firstUserId, secondUserId) {
     return util.buildResponse(404, { msg: "User not found" });
   }
 
+  if (!firstUser.friends) {
+    firstUser.friends = [];
+  }
+
   if (firstUser.friends.indexOf(secondUserId) > 0) {
     return util.buildResponse(400, { msg: "Friends Already" });
   }
