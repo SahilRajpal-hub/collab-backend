@@ -8,14 +8,27 @@ const {
   unfriendTheUser,
 } = require("./service/user/userOperations");
 const { getUserFromToken } = require("./utils/auth");
+const {
+  createTask,
+  getTaskById,
+  getAllTasks,
+  getAllTaskWherePartner,
+  getAllTaskWhereOwner,
+} = require("./service/task/taskDetails");
+const { deleteTask } = require("./service/task/taskOperations");
 
 const healthPath = "/health";
 const registerPath = "/user/register";
 const loginPath = "/user/login";
 const verifyPath = "/user/auth";
-const getUserPath = "/user/{uid}";
+const userPath = "/user/{uid}";
 const getUserInfoPath = "/user/info/{uid}";
 const friendPath = "/user/friend/{todo}";
+const taskPath = "/task/{id}";
+const searchTaskPath = "/task/search";
+const getAllTaskPath = "/task/all";
+const createTaskPath = "/task";
+const getAllTaskOfUserPath = "/task/all/{id}";
 
 exports.handler = async (event) => {
   console.log("Request Event: ", event);
@@ -30,6 +43,7 @@ exports.handler = async (event) => {
   let secondUserId;
   let firstUser;
   let firstUserId;
+  let id;
 
   switch (true) {
     case event.httpMethod === "GET" && event.path === healthPath:
@@ -66,13 +80,13 @@ exports.handler = async (event) => {
       response = await unfriendTheUser(firstUserId, secondUserId);
       break;
     case event.httpMethod === "GET" &&
-      event.resource === getUserPath &&
+      event.resource === userPath &&
       event["queryStringParameters"]["uidtype"] === "email":
       uid = event["pathParameters"]["uid"];
       response = await getUserByEmail(uid);
       break;
     case event.httpMethod === "GET" &&
-      event.resource === getUserPath &&
+      event.resource === userPath &&
       event["queryStringParameters"]["uidtype"] === "id":
       uid = event["pathParameters"]["uid"];
       response = await getUserById(uid);
@@ -83,11 +97,27 @@ exports.handler = async (event) => {
       uid = event["pathParameters"]["uid"];
       response = await getUserByEmail(uid);
       break;
-    case event.httpMethod === "GET" &&
-      event.resource === getUserInfoPath &&
-      event["queryStringParameters"]["uidtype"] === "id":
-      uid = event["pathParameters"]["uid"];
-      response = await getUserById(uid);
+    case event.httpMethod === "POST" && event.path === createTaskPath:
+      const taskBody = JSON.parse(event.body);
+      response = await createTask(taskBody);
+      break;
+    case event.httpMethod === "GET" && event.resource === taskPath:
+      id = event["pathParameters"]["id"];
+      response = await getTaskById(id);
+      break;
+    case event.httpMethod === "DELETE" && event.resource === taskPath:
+      id = event["pathParameters"]["id"];
+      response = await deleteTask(id);
+      break;
+    case event.httpMethod === "GET" && event.resource === getAllTaskOfUserPath:
+      const partnerType = event["queryStringParameters"]["partnertype"];
+      console.log(partnerType === "wherePartner");
+      id = event["pathParameters"]["id"];
+      if (partnerType === "All") response = await getAllTasks(id);
+      else if (partnerType === "wherePartner")
+        response = await getAllTaskWherePartner(id);
+      else if (partnerType === "whereOwner")
+        response = await getAllTaskWhereOwner(id);
       break;
     default:
       response = util.buildResponse(404, "404 Not Found");

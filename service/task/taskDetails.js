@@ -5,7 +5,7 @@ AWS.config.update({
 const util = require("../../utils/util");
 const { v4: uuidv4 } = require("uuid");
 const collabTable = "collab_db";
-const dynamodb = new AWS.DynamoDb.DocumentClient();
+const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 // @api
 // @params -> {topic, description,owner,deadline,completion,partner,link,document,id }
@@ -40,6 +40,8 @@ async function createTask(body) {
     document,
   };
 
+  console.log(task);
+
   const params = {
     TableName: collabTable,
     Item: task,
@@ -49,7 +51,7 @@ async function createTask(body) {
     .put(params)
     .promise()
     .then(
-      (response) => {
+      async (response) => {
         await updateUserTask(userId, task.id);
         return util.buildResponse(201, { msg: "Task successfully created" });
       },
@@ -70,18 +72,21 @@ async function getTaskById(id) {
   };
 
   const task = await dynamodb
-    .query(params)
+    .get(params)
     .promise()
     .then(
       (response) => {
         return response.Item;
       },
       (err) => {
+        console.log(err);
         return util.buildResponse(500, {
           msg: "Internal Server error while fetching the task",
         });
       }
     );
+
+  return util.buildResponse(200, task);
 }
 
 async function updateUserTask(userId, taskId) {
@@ -105,7 +110,7 @@ async function updateUserTask(userId, taskId) {
   return await dynamodb
     .update(params)
     .promise()
-    .the(
+    .then(
       (res) => {
         return res;
       },
@@ -140,18 +145,26 @@ async function getUserById(id) {
 
 async function getAllTaskWherePartner(userId) {
   const user = await getUserById(userId);
-  return [...user.tasksPartner];
+  console.log(user);
+  if (!user.tasksPartner) user.tasksPartner = [];
+  const tasksUser = [...user.tasksPartner];
+  return util.buildResponse(200, tasksUser);
 }
 
 async function getAllTaskWhereOwner(userId) {
   const user = await getUserById(userId);
-  return [...user.tasksOwner];
+  if (!user.tasksOwner) user.tasksOwner = [];
+  const tasksUser = [...user.tasksOwner];
+  return util.buildResponse(200, tasksUser);
 }
 
-async function getAllTasks(id) {
-  const taskWithPartner = await getAllTaskWherePartner(id);
-  const taskWithoutPartner = await getAllTaskWhereOwner(id);
-  return [...taskWithPartner, ...taskWithoutPartner];
+async function getAllTasks(userId) {
+  const user = await getUserById(userId);
+  console.log(user);
+  if (!user.tasksPartner) user.tasksPartner = [];
+  if (!user.tasksOwner) user.tasksOwner = [];
+  const allTasks = [...user.tasksPartner, ...user.tasksOwner];
+  return util.buildResponse(200, allTasks);
 }
 
 module.exports = {
