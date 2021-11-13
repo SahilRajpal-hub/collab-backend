@@ -8,8 +8,9 @@ const collabTable = "collab_db";
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 async function createRequest(senderId, recieverId) {
+  const requestId = uuidv4();
   const request = {
-    id: uuidv4(),
+    id: requestId,
     sender: senderId,
     reciever: recieverId,
   };
@@ -23,14 +24,44 @@ async function createRequest(senderId, recieverId) {
     .put(params)
     .promise()
     .then(
-      (res) => {
-        const sender = getUserById(senderId);
-        const reciever = getUserById(recieverId);
+      async (res) => {
+        const sender = await getUserById(senderId);
+        const reciever = await getUserById(recieverId);
+        sender.requestSent = sender.requestSent
+          ? [...sender.requestSent, requestId]
+          : [requestId];
+        reciever.requestRecieved = reciever.requestRecieved
+          ? [...reciever.requestRecieved, requestId]
+          : [requestId];
+        await updateUserSendingRequest(senderId, sender);
+        await updateUserRecievingRequest(recieverId, reciever);
         return util.buildResponse(200, { ...request });
       },
       (err) => {
         console.log(err);
         return util.buildResponse(500, { msg: "Internal Server Error" });
+      }
+    );
+}
+
+async function getRequestById(id) {
+  const params = {
+    TableName: collabTable,
+    Key: {
+      id: id,
+    },
+  };
+
+  return await dynamodb
+    .get(params)
+    .promise()
+    .then(
+      (response) => {
+        return response.Item;
+      },
+      (error) => {
+        console.error("There is an error getting user: ", error);
+        throw new Error(error);
       }
     );
 }
@@ -57,7 +88,7 @@ async function getUserById(id) {
     );
 }
 
-async function deleteRequest(requestId) {
+async function deleteRequestWithId(requestId) {
   const params = {
     TableName: collabTable,
     Key: {
@@ -78,8 +109,88 @@ async function deleteRequest(requestId) {
     );
 }
 
-async function deleteRequest(senderId, recieverId) {}
+async function deleteRequest(senderId, recieverId) {
+  const sender = await getUserById(senderId);
+  const reciever = await getUserById(recieverId);
 
-async function requestOfUser(userId) {}
+  const sentRequests = sender.requestSent ? [...sender.requestSent] : [];
+  const recievedRequest = reciever.requestRecieved
+    ? [...reciever.requestRecieved]
+    : [];
 
-module.exports = { createRequest, deleteRequest };
+  const requestId = sentRequests.filter((rq) => recievedRequest.includes(rq));
+  return await deleteRequestWithId(requestId[0]);
+}
+
+async function requestRecievedOfUser(userId) {
+  const user = await getUserById(userId);
+  if (!user.requestRecieved) return util.buildResponse(200, { requests: [] });
+  return util.buildResponse(200, { requests: [...user.requestRecieved] });
+}
+
+async function requestSentOfUser(userId) {
+  const user = await getUserById(userId);
+  if (!user.requestSent) return util.buildResponse(200, { requests: [] });
+  return util.buildResponse(200, { requests: [...user.requestSent] });
+}
+
+async function updateUserSendingRequest(senderId, requestSent) {
+  const params = {
+    TableName: collabTable,
+    Key: {
+      id: senderId,
+    },
+    UpdateExpression: "set requestSent = :r",
+    ExpressionAttributeValue: {
+      ":r": requestSent,
+    },
+    ReturnValues: "UPDATED_NEW",
+  };
+
+  return await dynamodb
+    .update(params)
+    .promise()
+    .then(
+      (res) => {
+        return res;
+      },
+      (err) => {
+        console.log(err);
+      }
+    );
+}
+
+async function updateUserRecievingRequest(recieverId, requestRecieved) {
+  const params = {
+    TableName: collabTable,
+    Key: {
+      id: recieverId,
+    },
+    UpdateExpression: "set requestRecieved = :r",
+    ExpressionAttributeValue: {
+      ":r": requestRecieved,
+    },
+    ReturnValues: "UPDATED_NEW",
+  };
+
+  return await dynamodb
+    .update(params)
+    .promise()
+    .then(
+      (res) => {
+        return res;
+      },
+      (err) => {
+        console.log(err);
+      }
+    );
+}
+
+module.exports = {
+  createRequest,
+  deleteRequest,
+  deleteRequestWithId,
+  requestSentOfUser,
+  requestRecievedOfUser,
+  getRequestById,
+};
